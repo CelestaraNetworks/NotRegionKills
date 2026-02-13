@@ -67,7 +67,7 @@ public class StatManager {
 
     public static boolean isMob(String type) {
         type = type.toUpperCase();
-        if (NotRegionKills.mythicMobsEnabled && MythicMobsClass.isMythicMob(type))
+        if (NotRegionKills.isMythicMobsEnabled() && MythicMobsClass.isMythicMob(type))
             return true;
         try {
             if (EntityType.valueOf(type).isAlive())

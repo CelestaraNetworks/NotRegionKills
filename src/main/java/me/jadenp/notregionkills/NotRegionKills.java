@@ -10,10 +10,11 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 public final class NotRegionKills extends JavaPlugin {
     private static NotRegionKills instance;
-    public static boolean mythicMobsEnabled = false;
+    private static boolean mythicMobsEnabled = false;
     public static StateFlag trackKills;
     private static boolean failedStartup = false;
 
@@ -41,6 +42,14 @@ public final class NotRegionKills extends JavaPlugin {
         }
     }
 
+    public static boolean isMythicMobsEnabled() {
+        return mythicMobsEnabled;
+    }
+
+    private static void setMythicMobsEnabled() {
+        NotRegionKills.mythicMobsEnabled = true;
+    }
+
     public static NotRegionKills getInstance() {
         return instance;
     }
@@ -57,13 +66,23 @@ public final class NotRegionKills extends JavaPlugin {
         try {
             StatManager.loadSavedKills(); // load saved stats
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            getLogger().warning("Failed to load saved stats! Disabling plugin to avoid overwriting player data.");
+            Arrays.stream(e.getStackTrace()).forEach(stackTraceElement -> getLogger().warning(stackTraceElement.toString()));
+            Bukkit.getPluginManager().disablePlugin(this);
         }
-        // load mythic mobs if enabled
-        if (Bukkit.getPluginManager().isPluginEnabled("MythicMobs")) {
-            MythicMobsClass.loadMobTypes();
-            mythicMobsEnabled = true;
-        }
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                // load mythic mobs if enabled
+                if (Bukkit.getPluginManager().isPluginEnabled("MythicMobs")) {
+                    getLogger().info("Hooked into MythicMobs!");
+                    MythicMobsClass.loadMobTypes();
+                    setMythicMobsEnabled();
+                }
+            }
+        }.runTaskLater(this, 200L);
+
 
         // register placeholder expansion
         new RegionKillsExpansion().register();
@@ -74,23 +93,24 @@ public final class NotRegionKills extends JavaPlugin {
         new BukkitRunnable() {
             @Override
             public void run() {
-                try {
-                    StatManager.save();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+                save();
             }
-        }.runTaskTimer(this, 15 * 60 * 20 + 34, 15 * 60 * 20); // 15 min
+        }.runTaskTimer(this, 15 * 60 * 20 + 34L, 15 * 60 * 20L); // 15 min
     }
 
 
     @Override
     public void onDisable() {
         // Plugin shutdown logic
+        save();
+    }
+
+    private void save() {
         try {
             StatManager.save();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            getLogger().warning("Failed to save stats!");
+            Arrays.stream(e.getStackTrace()).forEach(stackTraceElement -> getLogger().warning(stackTraceElement.toString()));
         }
     }
 }

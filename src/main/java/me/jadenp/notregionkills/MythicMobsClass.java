@@ -11,6 +11,8 @@ import java.util.List;
 public class MythicMobsClass {
     private static final List<String> mobTypes = new ArrayList<>();
 
+    private MythicMobsClass(){}
+
     /**
      * Checks whether the mob type is a mythic mob
      * @param mobType Mob Type - not case-sensitive
