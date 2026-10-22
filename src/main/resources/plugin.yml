@@ -2,8 +2,10 @@ name: NotRegionKills
 version: '${project.version}'
 main: me.jadenp.notregionkills.NotRegionKills
 description: Track region mob kills through a placeholder.
+api-version: '1.20'
 depend:
   - PlaceholderAPI
+softdepend:
   - WorldGuard
-soft-depend:
+  - CelestaraZones
   - MythicMobs

@@ -17,9 +17,17 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.Locale;
+import java.nio.file.*;
+import java.nio.charset.StandardCharsets;
 
 public class StatManager {
+    public static long getTypedRegionMobKills(UUID uuid, String mobType, RegionType region) {
+        RegionStat stats = allPlayerStats.get(uuid);
+        if (stats == null) return 0;
+        PlayerStat kills = stats.getRegionKills().get(region);
+        return kills == null ? 0 : kills.getEntityKills().getOrDefault(mobType.toUpperCase(Locale.ROOT), 0L);
+    }
     private StatManager(){}
     public static final Gson gson;
     static {
@@ -43,7 +51,7 @@ public class StatManager {
 
         // read json from stats file & save to map
         Type mapType = new TypeToken<Map<UUID, RegionStat>>(){}.getType();
-        try (JsonReader reader = new JsonReader(new FileReader(save))) {
+        try (JsonReader reader = new JsonReader(Files.newBufferedReader(save.toPath(), StandardCharsets.UTF_8))) {
             allPlayerStats = gson.fromJson(reader, mapType);
         }
 
@@ -60,13 +68,24 @@ public class StatManager {
         File save = getSaveFile();
 
         Type mapType = new TypeToken<Map<UUID, RegionStat>>(){}.getType();
-        JsonWriter writer = new JsonWriter(new FileWriter(save));
-        gson.toJson(allPlayerStats, mapType, writer);
-        writer.close();
+        Path destination = save.toPath();
+        Path temporary = Files.createTempFile(destination.getParent(), "stats-", ".tmp");
+        try {
+            try (JsonWriter writer = new JsonWriter(Files.newBufferedWriter(temporary, StandardCharsets.UTF_8))) {
+                gson.toJson(allPlayerStats, mapType, writer);
+            }
+            try {
+                Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
     }
 
     public static boolean isMob(String type) {
-        type = type.toUpperCase();
+        type = type.toUpperCase(Locale.ROOT);
         if (NotRegionKills.isMythicMobsEnabled() && MythicMobsClass.isMythicMob(type))
             return true;
         try {
@@ -85,14 +104,8 @@ public class StatManager {
      * @param mobType the type of mob
      */
     public static void killMob(Player killer, RegionType region, String mobType) {
-        mobType = mobType.toUpperCase();
-        if (allPlayerStats.containsKey(killer.getUniqueId())) {
-            allPlayerStats.get(killer.getUniqueId()).killEntity(region, mobType);
-        } else {
-            RegionStat stat = new RegionStat();
-            stat.killEntity(region, mobType);
-            allPlayerStats.put(killer.getUniqueId(), stat);
-        }
+        mobType = mobType.toUpperCase(Locale.ROOT);
+        allPlayerStats.computeIfAbsent(killer.getUniqueId(), id -> new RegionStat()).killEntity(region, mobType);
     }
 
     /**
@@ -123,11 +136,11 @@ public class StatManager {
         // get region stats
         RegionStat regionStat = allPlayerStats.get(uuid);
         // go through every region stat and add up all the recorded kills
-        AtomicLong total = new AtomicLong();
-        regionStat.getRegionKills().entrySet().stream()
-                .filter(entry -> entry.getKey().getType() == RegionType.Type.WORLD).forEach(entry -> entry.getValue()
-                        .getEntityKills().values().forEach(total::addAndGet));
-        return total.get();
+        long total = 0;
+        for (Map.Entry<RegionType, PlayerStat> entry : regionStat.getRegionKills().entrySet()) {
+            if (entry.getKey().getType() == RegionType.Type.WORLD) total += entry.getValue().totalKills();
+        }
+        return total;
     }
 
     /**
@@ -138,19 +151,16 @@ public class StatManager {
      * @return the number of killed mobs of mobType in the region for the player
      */
     public static long getRegionMobKills(UUID uuid, String mobType, String region) {
-        mobType = mobType.toUpperCase();
+        mobType = mobType.toUpperCase(Locale.ROOT);
         // check if uuid exists in stats
         if (!allPlayerStats.containsKey(uuid))
             return 0;
         // get region stats
         RegionStat regionStat = allPlayerStats.get(uuid);
         // get player stats
-        PlayerStat playerStat = null;
-        if (regionStat.getRegionKills().containsKey(new RegionType(region, RegionType.Type.WORLDGUARD))) {
-            playerStat = regionStat.getRegionKills().get(new RegionType(region, RegionType.Type.WORLDGUARD));
-        } else if (regionStat.getRegionKills().containsKey(new RegionType(region, RegionType.Type.WORLD))) {
-            playerStat = regionStat.getRegionKills().get(new RegionType(region, RegionType.Type.WORLD));
-        }
+        PlayerStat playerStat = regionStat.getRegionKills().get(new RegionType(region, RegionType.Type.WORLDGUARD));
+        if (playerStat == null) playerStat = regionStat.getRegionKills().get(new RegionType(region, RegionType.Type.WORLD));
+        if (playerStat == null) playerStat = regionStat.getRegionKills().get(new RegionType(region, RegionType.Type.CELESTARAZONES));
         // check if mob has been recorded for this player
         if (playerStat == null || !playerStat.getEntityKills().containsKey(mobType))
             return 0;
@@ -174,10 +184,7 @@ public class StatManager {
             return 0;
         // get player stats
         PlayerStat playerStat = regionStat.getRegionKills().get(region);
-        AtomicLong total = new AtomicLong();
-        // count up all the stored values in playerStat
-        playerStat.getEntityKills().values().forEach(total::addAndGet);
-        return total.get();
+        return playerStat.totalKills();
     }
 
     /**
@@ -187,7 +194,7 @@ public class StatManager {
      * @return the amount of mobs the player has killed that are mobType
      */
     public static long getMobKills(UUID uuid, String mobType) {
-        mobType = mobType.toUpperCase();
+        mobType = mobType.toUpperCase(Locale.ROOT);
         // check if uuid exists in stats
         if (!allPlayerStats.containsKey(uuid))
             return 0;

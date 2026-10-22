@@ -7,7 +7,7 @@ public class RegionType {
     private final Type type;
 
     public enum Type {
-        WORLDGUARD, WORLD
+        WORLDGUARD, WORLD, CELESTARAZONES
     }
 
     public RegionType(String name, Type type) {

@@ -43,6 +43,8 @@ public class RegionStatAdapter extends TypeAdapter<RegionStat> {
             String name = in.nextName();
             if (name.equals("regionKills")) {
                 regionKills = readRegionKills(in);
+            } else {
+                in.skipValue();
             }
         }
         in.endObject();

@@ -5,11 +5,12 @@ import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.core.mobs.ActiveMob;
 import org.bukkit.entity.LivingEntity;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Locale;
 
 public class MythicMobsClass {
-    private static final List<String> mobTypes = new ArrayList<>();
+    private static final Set<String> mobTypes = new HashSet<>();
 
     private MythicMobsClass(){}
 
@@ -19,7 +20,7 @@ public class MythicMobsClass {
      * @return True if the mob is a mythic mob
      */
     public static boolean isMythicMob(String mobType) {
-        mobType = mobType.toUpperCase();
+        mobType = mobType.toUpperCase(Locale.ROOT);
         return mobTypes.contains(mobType);
     }
 
@@ -38,7 +39,7 @@ public class MythicMobsClass {
     public static void loadMobTypes() {
         mobTypes.clear();
         for (MythicMob mob : MythicBukkit.inst().getMobManager().getMobTypes()) {
-            mobTypes.add(mob.getInternalName().toUpperCase());
+            mobTypes.add(mob.getInternalName().toUpperCase(Locale.ROOT));
         }
     }
 }

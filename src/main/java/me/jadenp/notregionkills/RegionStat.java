@@ -16,13 +16,7 @@ public class RegionStat {
     }
 
     public void killEntity(RegionType region, String entityType) {
-        if (regionKills.containsKey(region)) {
-            regionKills.get(region).killEntity(entityType);
-        } else {
-            PlayerStat stat = new PlayerStat();
-            stat.killEntity(entityType);
-            regionKills.put(region, stat);
-        }
+        regionKills.computeIfAbsent(region, key -> new PlayerStat()).killEntity(entityType);
     }
 
     public Map<RegionType, PlayerStat> getRegionKills() {

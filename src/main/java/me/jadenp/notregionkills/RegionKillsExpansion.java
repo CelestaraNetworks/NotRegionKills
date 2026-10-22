@@ -18,6 +18,9 @@ public class RegionKillsExpansion extends PlaceholderExpansion {
     }
 
     @Override
+    public boolean persist() { return true; }
+
+    @Override
     public @NotNull String getAuthor() {
         return "Not_Jaden";
     }
@@ -29,6 +32,23 @@ public class RegionKillsExpansion extends PlaceholderExpansion {
 
     @Override
     public String onRequest(OfflinePlayer player, String params) {
+        if (player == null) return null;
+        if (params.startsWith("zone_")) {
+            return Long.toString(StatManager.getRegionKills(player.getUniqueId(),
+                    new RegionType(params.substring(5), RegionType.Type.CELESTARAZONES)));
+        }
+        if (params.startsWith("zonemob_")) {
+            String query = params.substring(8);
+            // Zone IDs may contain underscores. Choose the longest valid mob prefix.
+            for (int split = query.lastIndexOf('_'); split > 0; split = query.lastIndexOf('_', split - 1)) {
+                String mob = query.substring(0, split);
+                if (StatManager.isMob(mob)) {
+                    return Long.toString(StatManager.getTypedRegionMobKills(player.getUniqueId(), mob,
+                            new RegionType(query.substring(split + 1), RegionType.Type.CELESTARAZONES)));
+                }
+            }
+            return "";
+        }
         if (params.equalsIgnoreCase("total")) {
             // %notregionkills_total% - total mob kills
             return StatManager.getTotalMobKills(player.getUniqueId()) + "";

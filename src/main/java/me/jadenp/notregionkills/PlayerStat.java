@@ -19,10 +19,13 @@ public class PlayerStat {
         return entityKills;
     }
     public void killEntity(String entityType) {
-        if (entityKills.containsKey(entityType))
-            entityKills.replace(entityType, entityKills.get(entityType) + 1);
-        else
-            entityKills.put(entityType, 1L);
+        entityKills.merge(entityType, 1L, Long::sum);
+    }
+
+    public long totalKills() {
+        long total = 0;
+        for (long count : entityKills.values()) total += count;
+        return total;
     }
 
     @Override
